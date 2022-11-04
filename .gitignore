@@ -18,5 +18,8 @@ cover/
 *.so
 venv/
 .idea/
+.idea
+idea
+idea/
 datasets/
 fix.py
