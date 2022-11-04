@@ -8,10 +8,11 @@
 
 import os
 import random
-from PIL import Image
+from PIL import Image, ImageOps
 from PIL import ImageFilter
 from PIL.ImageDraw import Draw
 from PIL.ImageFont import truetype
+from pathlib import Path
 try:
     from cStringIO import StringIO as BytesIO
 except ImportError:
@@ -23,6 +24,10 @@ except ImportError:
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 DEFAULT_FONTS = [os.path.join(DATA_DIR, 'DroidSansMono.ttf')]
+print(DEFAULT_FONTS)
+FONT_DIR = Path("./fonts/")
+MY_FONTS = list(map(str, list(FONT_DIR.glob("*.ttf"))))
+print(MY_FONTS)
 
 if wheezy_captcha:
     __all__ = ['ImageCaptcha', 'WheezyCaptcha']
@@ -64,7 +69,7 @@ class WheezyCaptcha(_Captcha):
     def __init__(self, width=350, height=140, fonts=None):
         self._width = width
         self._height = height
-        self._fonts = fonts or DEFAULT_FONTS
+        self._fonts = fonts or MY_FONTS
 
     def generate_image(self, chars):
         text_drawings = [
@@ -109,8 +114,8 @@ class ImageCaptcha(_Captcha):
     def __init__(self, width=350, height=140, fonts=None, font_sizes=None):
         self._width = width
         self._height = height
-        self._fonts = fonts or DEFAULT_FONTS
-        self._font_sizes = font_sizes or (81, 91, 102)
+        self._fonts = fonts or MY_FONTS
+        self._font_sizes = font_sizes or (71, 83, 90)
         self._truefonts = []
 
     @property
@@ -124,74 +129,82 @@ class ImageCaptcha(_Captcha):
         ])
         return self._truefonts
 
-    @staticmethod
-    def create_noise_curve(image, color, line_width):
+    def create_noise_curve(self, image, color, line_width):
         w, h = image.size
+        offset_choice = [random.randint(10, 100), 0]
         finished = False
         chance = random.randint(0, 3)
         w_margin = 100
         h_margin = 50
-        if chance == 0:
-            x1 = 0
-            x2 = random.randint(0, h - h_margin)
-        elif chance == 1:
-            x1 = random.randint(w_margin, w)
-            x2 = 0
-        elif chance == 2:
-            x1 = w
-            x2 = random.randint(0, h - h_margin)
-        else:
-            x1 = random.randint(0, w - w_margin)
-            x2 =h
-
+        x1, x2 = self._set_x_coord(offset_choice, chance, h_margin, w_margin, h, w)
         while not finished:
-            rand_w = random.randint(1, 10) + random.randint(3, 10)
-            rand_h = random.randint(1, 10)
-            if chance == 0:
-                y1 = x1 + rand_w
-                y2 = x2 + rand_h
-                if y1 >= w:
-                    y1 = w
-                    finished = True
-                if y2 >= h:
-                    y2 = h
-                    finished = True
-            elif chance == 1:
-                y1 = x1 - rand_w
-                y2 = x2 + rand_h
-                if y1 <= 0:
-                    y1 = 0
-                    finished = True
-                if y2 >= h:
-                    y2 = h
-                    finished = True
-            elif chance == 2:
-                y1 = x1 - rand_w
-                y2 = x2 - rand_h
-                if y1 <= 0:
-                    y1 = 0
-                    finished = True
-                if y2 <= 0:
-                    y2 = 0
-                    finished = True
-            else:
-                y1 = x1 + rand_w
-                y2 = x2 - rand_h
-                if y1 >= w:
-                    y1 = w
-                    finished = True
-                if y2 <= 0:
-                    y2 = 0
-                    finished = True
-
+            y1, y2, finished = self._set_y_coord(chance, x1, x2, w, h)
             Draw(image).line(((x1, x2), (y1, y2)), fill=color, width=line_width)
             x1 = y1
             x2 = y2
 
         return image
 
-    @staticmethod
-    def create_noise_dots(image, color, max_width=2, number=600):
+    def _set_x_coord(self, offset_choice, chance, h_margin, w_margin, h, w):
+        if chance == 0:
+            x1 = 0 + offset_choice[random.randint(0,1)]
+            x2 = random.randint(0, h - h_margin)
+        elif chance == 1:
+            x1 = random.randint(w_margin, w)
+            x2 = 0 + offset_choice[random.randint(0,1)]
+        elif chance == 2:
+            x1 = w - offset_choice[random.randint(0,1)]
+            x2 = random.randint(0, h - h_margin)
+        else:
+            x1 = random.randint(0, w - w_margin)
+            x2 = h - offset_choice[random.randint(0,1)]
+
+        return x1, x2
+
+    def _set_y_coord(self, chance, x1, x2, w, h):
+        finished = False
+        rand_w = random.randint(4, 20)
+        rand_h = random.randint(1, 10)
+        if chance == 0:
+            y1 = x1 + rand_w
+            y2 = x2 + rand_h
+            if y1 >= w:
+                y1 = w
+                finished = True
+            if y2 >= h:
+                y2 = h
+                finished = True
+        elif chance == 1:
+            y1 = x1 - rand_w
+            y2 = x2 + rand_h
+            if y1 <= 0:
+                y1 = 0
+                finished = True
+            if y2 >= h:
+                y2 = h
+                finished = True
+        elif chance == 2:
+            y1 = x1 - rand_w
+            y2 = x2 - rand_h
+            if y1 <= 0:
+                y1 = 0
+                finished = True
+            if y2 <= 0:
+                y2 = 0
+                finished = True
+        else:
+            y1 = x1 + rand_w
+            y2 = x2 - rand_h
+            if y1 >= w:
+                y1 = w
+                finished = True
+            if y2 <= 0:
+                y2 = 0
+                finished = True
+
+        return y1, y2, finished
+
+    def create_noise_dots(self, image, color, max_width=2, number=600):
         draw = Draw(image)
         w, h = image.size
         while number:
@@ -215,7 +228,6 @@ class ImageCaptcha(_Captcha):
         image = Image.new('RGBA', (self._width, self._height), background)
         draw = Draw(image)
 
-        # im = im.filter(ImageFilter.SMOOTH)
         def _draw_character(c):
             font = random.choice(self.truefonts)
             w, h = draw.textsize(c, font=font)
@@ -252,8 +264,7 @@ class ImageCaptcha(_Captcha):
         images = []
         images.append(_draw_character(" "))
         for c in chars:
-            # if random.random() > 0.9:
-            #     images.append(_draw_character(" "))
+            images.append(_draw_character("  "))
             images.append(_draw_character(c))
 
         # for c in chars:
@@ -288,14 +299,28 @@ class ImageCaptcha(_Captcha):
         """
         background = random_color(238, 255)
         color = random_color(10, 200, 255)
-        color = (255,0,0,255)
-        print(color)
+        # color = (255,0,0,255)
+        # print(color)
         im = self.create_captcha_image(chars, color, background)
-        self.create_noise_dots(im, color, number=800, max_width=2)
-        self.create_noise_dots(im, self.add_opacity_to_color(color, 50), number=200, max_width=1)
-        for i in range(random.randint(4, 7)):
-            self.create_noise_curve(im, color, line_width=random.randint(2, 7))
+        self.create_noise_dots(im, color, number=900, max_width=3)
+        self.create_noise_dots(im, self.add_opacity_to_color(color, 50), number=250, max_width=2)
+        for i in range(random.randint(4, 9)):
+            self.create_noise_curve(im, color, line_width=random.randint(2, 8))
         im = im.filter(ImageFilter.SMOOTH)
+        im = self.to_b_and_W(im)
+        im.thumbnail((175,70), Image.Resampling.NEAREST)
+        return im
+
+    def to_b_and_W(self, im):
+        im = ImageOps.grayscale(im)
+        w, h = im.size
+        for x in range(w):
+            for y in range(h):
+                pixel = im.getpixel((x, y))
+                if pixel > 200:
+                    im.putpixel((x, y), (255))
+                else:
+                    im.putpixel((x, y), (0))
         return im
 
     def add_opacity_to_color(self, color, opacity):
@@ -303,7 +328,6 @@ class ImageCaptcha(_Captcha):
         return (r,g,b,opacity)
 
 def random_color(start, end, opacity=None):
-    print("rand")
     red = random.randint(start, end)
     green = random.randint(start, end)
     blue = random.randint(start, end)
