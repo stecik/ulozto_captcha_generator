@@ -1,4 +1,5 @@
 # Modification of python captcha library <br>
+## Because of the current changes (1.12.2023) this repository won't be updated anymore unless the situation changes.
 Original project available here: https://github.com/lepture/captcha
 ## Modification
 The purpose of this modification is to generate similar CAPTCHA images to those used by server uloz.to in order to train a model.
